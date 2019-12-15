@@ -14,9 +14,20 @@ Rationale: the code is composed of 3 parts:
    
 ## Requirements and execution
  
- Requires: Python, Keras, numpy and Pandas
+ Requires: Python, Keras, Tensorflow, numpy and Pandas
  Execution: 
  
 ```python
  python bouncer_problem_neural.py
 ```
+Example run results:
+```
+*** Percentage of incoherent pairs (IPs) ***
+All four: 0.026122
+Employment:  0.008163
+Sex/status: 0.002449
+Age: 0.008571
+Foreigner: 0.004898
+```
+
+(run with the following library versions: Python 3.6, Keras 2.2.4, Tensorflow 1.14.0)
