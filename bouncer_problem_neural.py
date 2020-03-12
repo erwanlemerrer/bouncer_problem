@@ -5,10 +5,10 @@ The code leverages the German Credit Dataset, available at https://archive.ics.u
 
 Rationale: the code is composed of 3 parts:
 1) Train a model to predict credit default based on all features, including discriminative ones (i.e., age, sex, employment,foreigner)
-2) Train a model on all but the discriminative features
-3) This part simply computes the fraction of label changes (ie, IPs) between the prediction of the original and the model without discriminative features
+2) The second part simply computes the fraction of label changes (ie, IPs) between the prediction on tweaked profiles (on their discriminative features).
    (the four discriminatory features of each of 50 test profiles are sequentially replaced by the ones of the 49 remaining profiles; each resulting test profile is fed to the model for prediction)
    The results are used as a basis for Figure 4, after averaging 30 trials.
+   The final result represents the percentage of IPs found when randomizing a randomly selected discriminative feature in a user profile.
 '''
 
 from __future__ import division
@@ -69,36 +69,15 @@ print("avg %f / std %f" % (np.average(hist.history['val_acc']),np.std(hist.histo
 ''' 2) Tweaked neural network without discriminative features
 '''
 x_ = [6,7,10,15] # column indices of discriminatory features: 
-                 # respectively employment, sex/status, age, foreigner (/!\ not same number in non numeric csv!
+                 # respectively employment, sex/status, age, foreigner (/!\ not same number in non numeric csv!)
 # fully delete rows:
 X_train_legit = np.delete(X_train, x_, axis=1)
 X_test_legit  = np.delete(X_test,x_, axis=1)
 
 assert X_train_legit.shape[1]+len(x_) == X_train.shape[1]
 
-# y_train same, no need for modifications
-X_train_legit /= np.max(X_train_legit)
-X_test_legit /= np.max(X_test_legit)
-
-model_proxy = Sequential()
-model_proxy.add(Dense(23, input_dim=X_train_legit.shape[1]))
-model_proxy.add(Activation('sigmoid'))
-model_proxy.add(Dense(1))
-model_proxy.add(Activation('sigmoid'))
-
-model_proxy.compile(loss='binary_crossentropy', optimizer=opt, metrics=['acc'])
-hist_proxy = model_proxy.fit(X_train_legit, y_train, epochs=epochs, validation_split=0.25, callbacks=[] ,verbose=2)
-print("avg %f / std %f" % (np.average(hist_proxy.history['val_acc']),np.std(hist_proxy.history['val_acc'])))
-
-
-
-''' 3) Analysis
+''' 2) Analysis
 '''
-preds = model.predict_classes(X_test, verbose=0)
-preds_legit = model_proxy.predict_classes(X_test_legit, verbose=0)
-#for l in range(len(preds)): print("%d %d" % (preds[l],preds_legit[l]))
-print("Disagreement_ratio=%f" % (np.count_nonzero(np.not_equal(preds,preds_legit))/test_size))
-
 
 'all2all user swapping discriminative features'
 print("*** Percentage of incoherent pairs (IPs) ***")
@@ -185,3 +164,28 @@ for i in range(len(X_test)):
 print("Foreigner: %f" % (c/ct))
 f15 = c/ct
 
+'discriminative value randomization'
+print("*** Percentage of incoherent pairs (IPs) facing discriminative value randomization ***")
+i=0
+nb_trials = test_size * 10
+for k in range(nb_trials):
+    X_test_ = np.copy(X_test)
+     
+    user = random.randint(0,len(X_test)-1)
+
+    choice = random.choice(['employment', 'status', 'age', 'foreigner'])
+    if choice == 'employment':
+        X_test_[user][6] = random.randint(1,6)/scale_X_test
+    elif choice == 'status':
+        X_test_[user][7] = random.randint(1,5)/scale_X_test
+    elif choice == 'age':
+        X_test_[user][10] = random.randint(18,101)/scale_X_test
+    elif choice == 'foreigner':
+        X_test_[user][15] = random.randint(1,3)/scale_X_test
+    
+    p0  = model.predict_classes(np.reshape(X_test[user], (1, 24)), verbose=0)
+    p0_ = model.predict_classes(np.reshape(X_test_[user], (1, 24)), verbose=0)
+
+    if p0 != p0_:
+        i+=1
+print(np.average(i/nb_trials))
